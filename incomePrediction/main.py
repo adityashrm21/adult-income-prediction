@@ -31,7 +31,7 @@ def main():
     model = LogisticRegression()
 
     best_params = None
-    # set this parameter to 1 if you already have done CV before
+    # set this parameter to 0 if you already have done CV before
     cross_val = 1
     if not cross_val:
         print("Model and data info already exported, \
