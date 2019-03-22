@@ -87,7 +87,7 @@ The exported model is deployed as a microservice on Heroku using the steps given
 The model has been deployed on heroku and to get the predictions, you can use the following curl request:
 
 ```bash
-curl -X POST https://adult-income-prediction.herokuapp.com/predict -d '{"id": 8, "observation": {"age": 39, "workclass": "2", "education": "2", "marital_status": "0", "occupation": "2", "race" : "0", "sex": "1", "capital_gain": 1230, "capital_loss": 0, "hours_per_week": 55, "native_country": "1"}}' -H "Content-Type:application/json"
+curl -X POST https://adult-income-prediction.herokuapp.com/predict -d '{"id": 10, "observation": {"age": 39, "workclass": "2", "education": "2", "marital_status": "0", "occupation": "2", "race" : "0", "sex": "1", "capital_gain": 1230, "capital_loss": 0, "hours_per_week": 55, "native_country": "1"}}' -H "Content-Type:application/json"
 ```
 
 Note: Make sure to use a separate observation id for each request (if you want to store the results properly) as we are storing the results in an sqlite database and this would be the primary identifier for the records.
