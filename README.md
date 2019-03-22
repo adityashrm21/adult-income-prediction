@@ -79,7 +79,7 @@ Execute the `main.py` script which will train a model on the cleaned data and ex
 ```bash
 python3 incomePrediction/main.py
 ```
-I chose the `LogisticRegression` classifier from scikit-learn to get predictions (The test accuracy obtained is quite well ~ 85%). Cross-validation is done to choose the important hyperparameter (`C`) to control the degree of regularization. The script can be modified to use and tune any classifier available in `scikit-learn`. Both the training and test accuracies are comparable and hence, there seems to be no overfitting. I chose to go with Logistic Regression because it is a simple linear classifier whose results are interpretable and this is what I would expect from a model on such a dataset where the predictor-response relationship seems to be important in the analysis.
+I chose the `LogisticRegression` classifier from scikit-learn to get predictions (The test accuracy obtained is quite well ~ 85%). Cross-validation is done to choose the important hyperparameter (`C`) to control the degree of regularization. The script can be modified to use and tune any classifier available in `scikit-learn`. Both the training and test accuracies are comparable and hence, there seems to be no overfitting. I chose to go with Logistic Regression because it is a simple linear classifier whose results are interpretable and this is what I would expect from a model on such a dataset where the predictor-response relationship seems to be important in the analysis. I also tried building and tuning a RandomForest classifier and there was a 1 percent increase in the accuracies which is not much higher and therefore, a simpler model is a better choice.
 
 ### Deploy the model on Heroku
 
