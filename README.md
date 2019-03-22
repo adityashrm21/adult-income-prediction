@@ -5,7 +5,7 @@ Follow the steps provided below to reproduce the whole project.
 ### Setting up a virtual environment
 
 We'll use a virtual environment for this one.
-All of the necessary dependencies exist in `requirements.txt`.
+All of the necessary dependencies exist in [requirements.txt](https://github.com/adityashrm21/adult-income-prediction/blob/master/requirements.txt).
 
 Install pipenv using the instructons given in [this repository](https://github.com/pypa/pipenv).
 
@@ -51,7 +51,7 @@ R -e rmarkdown::render"('eda_adult.Rmd', clean=TRUE, output_format='pdf_document
 # use this command to generate a markdown
 R -e rmarkdown::render"('eda_adult.Rmd', clean=TRUE, output_format='github_document')"
 ```
-The script `eda_adult.pdf` will contain the exploratory analysis report on the adult income dataset.
+The scripts [eda_adult.md](https://github.com/adityashrm21/adult-income-prediction/blob/master/eda_adult.md) and [eda_adult.pdf](https://github.com/adityashrm21/adult-income-prediction/blob/master/eda_adult.pdf) (choose any format) will contain the exploratory analysis report on the adult income dataset.
 
 ### Data format after cleaning
 
@@ -83,7 +83,7 @@ I chose the `LogisticRegression` classifier from scikit-learn to get predictions
 
 ### Deploy the model on Heroku
 
-The exported model is deployed as a microservice on Heroku using the steps given in [this repository](https://github.com/LDSSA/heroku-model-deploy#sign-up-and-set-up-at-heroku).
+The exported model is deployed as a microservice on Heroku using the steps given in [this repository](https://github.com/LDSSA/heroku-model-deploy#sign-up-and-set-up-at-heroku). The file [app.py](https://github.com/adityashrm21/adult-income-prediction/blob/master/app.py) is adapted from the same repository.
 
 ### Steps to get predictions
 
@@ -97,7 +97,7 @@ Note: Make sure to use a separate observation id for each request (if you want t
 
 ### Testing framework
 
-I have used the `pytest` library to test the `Util` class. To run the tests use the following command from the root directory of the project:
+I have used the `pytest` library to test the [Util class](https://github.com/adityashrm21/adult-income-prediction/blob/master/incomePrediction/utils.py). To run the tests use the following command from the root directory of the project:
 
 ```bash
 pytest incomePrediction/tests/
