@@ -1,0 +1,462 @@
+---
+title: "Adult Dataset"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# importing the required libraries
+suppressPackageStartupMessages(library(tidyverse))
+```
+
+
+In this R Markdown document, I will be doing a preliminary data analysis and exploration for the [adult dataset from UCI ML datasets repository](https://archive.ics.uci.edu/ml/datasets/Adult).
+
+## Section 1: Reading and Cleaning up the dataset
+
+```{r}
+# reading the dataset
+adult <- read.csv("data/adult.data", header = FALSE)
+test <- read.csv("data/adult.test", header = FALSE, skip = 1)
+
+head(adult)
+```
+
+We see that there are 14 features and 1 response which is binary (whether the annual income is <= or greater than 50k).
+
+```{r}
+# assigning proper column names to variables
+adult <- adult %>%
+    magrittr::set_colnames(c("age", "workclass", "fnlwgt", "education", "education_num",
+                             "marital_status", "occupation", "relationship", "race",
+                             "sex", "capital_gain", "capital_loss", "hours_per_week",
+                             "native_country", "income"))
+head(adult)
+```
+
+Now that we have imported the data in the required format, we will move on to looking at the dataset and cleaning it wherever required.
+
+```{r}
+# looking at the structure of the data
+str(adult)
+summary(adult)
+```
+
+We see that there are missing values in 3 columns (in the form of `?`) looking at the structure of data. There also seems to be whitespace as a prefix in many of the categorical variables. We also don't need the final weight variable which was put up by the Census Board and hence, will remove it. Let us handle all these cases.
+
+```{r}
+adult <- adult %>%
+    mutate(income = str_trim(income, side = c("left")),
+           occupation = ifelse(occupation == " ?", "unknown", as.character(occupation)),
+           workclass = ifelse(workclass == " ?", "unknown", as.character(workclass)),
+           native_country = ifelse(native_country == " ?", "unknown", as.character(native_country)),
+           workclass = str_trim(workclass, side = c("left")),
+           education = str_trim(education, side = c("left")),
+           marital_status = str_trim(marital_status, side = c("left")),
+           occupation = str_trim(occupation, side = c("left")),
+           relationship = str_trim(relationship, side = c("left")),
+           sex = str_trim(sex, side = c("left")),
+           race = str_trim(race, side = c("left")),
+           native_country = str_trim(native_country, side = c("left")))
+head(adult)
+```
+
+```{r}
+# checking missing value category
+adult %>%
+    filter(is.na(workclass)) %>%
+    group_by(income) %>%
+    count()
+adult %>%
+    filter(is.na(occupation)) %>%
+    group_by(income) %>%
+    count()
+adult %>%
+    filter(is.na(native_country)) %>%
+    group_by(income) %>%
+    count()
+```
+
+We see that most of the people with missing values in the above 3 columns belong to the <50K income category and since we have a lot of data points for that category, we can safely ignore these cases from our analysis.
+
+```{r}
+adult <- adult %>%
+    filter(!is.na(workclass), !is.na(occupation), !is.na(native_country))
+```
+
+
+## Section 2: Univariate Analysis
+```{r}
+adult %>%
+    keep(is.numeric) %>%                     # Keep only numeric columns
+    gather() %>%                             # Convert to key-value pairs
+    ggplot(aes(value)) +                     # Plot the values
+    facet_wrap(~ key, scales = "free") +     # In separate panels
+    geom_histogram(color = "darkblue",
+                   fill = "lightblue", bins = 25) +
+    ggtitle("Histograms for numeric variables") +
+    theme_bw()
+```
+
+The age and final weight distributions seem to be right-skewed and a log/square-root transformation on these would be a good choice while building the model. Plotting `capital_gain` and `capital_loss` without the 0 value would give a better look at the distribution.
+
+```{r}
+adult %>%
+    select(capital_gain) %>%
+    filter(capital_gain != 0) %>%
+    ggplot() +
+    geom_histogram(aes(x = capital_gain), color = "darkblue",
+                   fill = "lightblue", bins = 25) +
+    ggtitle("Histogram for capital gain") +
+    theme_bw()
+
+adult %>%
+    select(capital_loss) %>%
+    filter(capital_loss != 0) %>%
+    ggplot() +
+    geom_histogram(aes(x = capital_loss), color = "darkblue",
+                   fill = "lightblue", bins = 25) +
+    ggtitle("Histogram for capital loss") +
+    theme_bw()
+```
+
+We see that there is a set of people with a very high capital gain (about a 100000) and the rest of the people form a right-skewed distribution. I suspect that these people with such a high capital gain would fall into the category of >50K income bracket. Let's find out!
+
+```{r}
+adult %>%
+    filter(capital_gain > 90000) %>%
+    group_by(income) %>%
+    count()
+```
+As expected, they are indeed a high-income group! Capital gain might be good predictor of income group. Let us now look at the distribution of some categorical variables.
+
+```{r}
+adult %>%
+    select(-income) %>%
+    keep(is.character) %>%
+    gather() %>%
+    ggplot(aes(value)) +
+    facet_wrap(~ key, scales = "free", ncol = 4) +
+    geom_bar(color = "darkblue", fill = "lightblue") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+Let us plot separately some figures which are not so clear in the picture above and break them down into actual numbers.
+
+```{r}
+# native country
+adult %>%
+    group_by(native_country) %>%
+    summarise(freq = n()) %>%
+    mutate(prop = freq / sum(freq) * 100) %>%
+    arrange(desc(prop))
+```
+
+Most of the people in the dataset are from the United-States.
+
+```{r}
+# workclass
+adult %>%
+    group_by(workclass) %>%
+    summarise(freq = n()) %>%
+    mutate(prop = freq / sum(freq) * 100) %>%
+    arrange(desc(prop))
+```
+
+As we see, most of the people belong to the `Private` workforce. Let us remake this plot so as to look at other classes clearly.
+
+```{r}
+# distribution without private workclass
+adult %>%
+    filter(workclass != "Private") %>%
+    ggplot() +
+    geom_bar(aes(x = workclass), color = "darkblue",
+                   fill = "lightblue") +
+    ggtitle("Bar plot for Workclass") +
+    theme_bw()
+```
+
+There are very less people who have never worked or who are living without a pay. We will now move on to multivariate analysis.
+
+## Section 3: Multivariate Analysis
+
+In this section, we will be analyzing the relationship between different predictors and the response along with some relationships and patterns within the predictors.
+
+```{r}
+adult %>%
+    ggplot() +
+    geom_violin(aes(x = income, y = age)) +
+    geom_boxplot(aes(x = income, y = age), width=0.05) +
+    geom_hline(yintercept = 35, color = "red") +
+    geom_hline(yintercept = 50, color = "red") +
+    theme_bw()
+```
+
+We see that most of the population under the age of 25 earns < 50K a year. This makes sense and most likely, this section of the population would not be earning much at all (as there will be a lot of students in this section). Most of the people who earn > 50K a year are in their 30s and 40s.
+
+```{r}
+adult %>%
+    group_by(education, income) %>%
+    summarise(freq = n()) %>%
+    mutate(prop = freq / sum(freq) * 100) %>%
+    filter(income == ">50K") %>%
+    arrange(desc(prop)) %>%
+    ggplot() +
+    geom_col(aes(x = reorder(education, prop), y = prop), color = "darkblue",
+                   fill = "lightblue") +
+    labs(x = "Education Level", y = "Percentage") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+No surprise here! Adults with a high level of education have a higher proportion of people who earn more than 50K a year. There also are some people with a low education level who are earning > 50K per year. Let us have a closer look at these people.
+
+```{r}
+adult %>%
+    filter(education_num < 8, income == ">50K") %>%
+    group_by(workclass) %>%
+    count() %>%
+    ggplot() +
+    geom_col(aes(x = reorder(workclass, n), y = n), color = "darkblue",
+                   fill = "lightblue") +
+    labs(x = "Work class", y = "Count") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+adult %>%
+    filter(education_num < 8, income == ">50K") %>%
+    group_by(education) %>%
+    count() %>%
+    ggplot() +
+    geom_col(aes(x = reorder(education, n), y = n), color = "darkblue",
+                   fill = "lightblue") +
+    labs(x = "Education level", y = "Count") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+These people are mostly high-school dropouts who worked for private companies or were self-employed.
+
+```{r}
+adult %>%
+    filter(education_num < 8, income == ">50K") %>%
+    group_by(sex) %>%
+    count()
+```
+
+Not surprisingly, most of these people are males (10:1 male-female ratio). We don't see many cases of women dropping out from schools and earning really high amounts of money. This probably reflects that men are more prone to risk taking than most women.
+
+
+```{r}
+# proportion of high earning people by occupation
+adult %>%
+    group_by(occupation, income) %>%
+    summarise(freq = n()) %>%
+    mutate(prop = freq / sum(freq) * 100) %>%
+    filter(income == ">50K") %>%
+    arrange(desc(prop)) %>%
+    ggplot() +
+    geom_col(aes(x = reorder(occupation, prop), y = prop), color = "darkblue",
+                   fill = "lightblue") +
+    labs(x = "Occupation", y = "Percentage") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+```{r}
+adult %>%
+    ggplot() +
+    geom_point(aes(x = hours_per_week, y = education_num, color = income)) +
+    labs(x = "Working hours per week", y = "Education level") +
+    theme_bw()
+```
+
+A lot of people who work > 50 hours per week have an income > 50K. Also, there is a bunch of people who don't spend a lot of time working, are really well-educated and earn a high income! They are probably the ones who earn fortunes for a few minutes of their lives.
+
+```{r}
+adult %>%
+    ggplot() +
+    geom_jitter(aes(x = marital_status, y = hours_per_week, color = income),
+                alpha = 0.1) +
+    labs(y = "Hours per week", x = "Marital Status") +
+    geom_hline(yintercept = 40, color = "darkgreen") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+It seems that people who never married are mostly having an income less than 50K a year. Also, most of the people who earn > 50K a year are Married civilians who work > 40 hours per week.
+
+```{r}
+# distribution of income by race
+adult %>%
+    ggplot() +
+    geom_bar(aes(x = race, fill = income), position = "dodge2") +
+    labs(x = "Race") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+# distribution of income by race without whites
+adult %>%
+    group_by(race, income) %>%
+    summarise(freq = n()) %>%
+    mutate(perc = freq / sum(freq) * 100) %>%
+    filter(race != "White") %>%
+    ggplot() +
+    geom_col(aes(x = race, y = freq, fill = income), position = "dodge2") +
+    geom_text(aes(x = race, y = freq, label = paste0(round(perc), "%")),
+              size = 4, position = position_dodge2(width = 0.8)) +
+    labs(x = "Sex", y = "Count") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+The ratio of people with an income >50K to the ones with an income <=50K seems to be nearly constant across all races.
+
+```{r fig.width=12, fig.height=10}
+adult %>%
+    ggplot() +
+    geom_bar(aes(x = race), color = "darkblue",
+                   fill = "lightblue") +
+    facet_wrap(~ education, scales = "free_y") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(x = "Race") +
+    ggtitle("Distribution of race by education level")
+```
+
+> It is surprising to see the reduced number of black people as compared to whites in the higher level of education categories like `Doctorate`, `Prof-school` and `Masters`. Let us look at the proportion of high earning people by native country.
+
+```{r}
+# percentage of high earning people by native-country
+adult %>%
+    group_by(native_country, income) %>%
+    summarise(freq = n()) %>%
+    mutate(prop = freq / sum(freq) * 100) %>%
+    filter(income == ">50K") %>%
+    arrange(desc(prop)) %>%
+    ggplot() +
+    geom_col(aes(x = reorder(native_country, prop), y = prop), color = "darkblue",
+                   fill = "lightblue") +
+    labs(x = "Native Country", y = "Percentage") +
+    coord_flip()
+```
+
+The distribution we see above shows that most of the migrants to the United-States are high earning people and there are also many countries whose migrants don't earn a high income. The United-States lies somewhere near the middle of these two categories of countries.
+
+```{r}
+# distribution of income by sex
+adult %>%
+    group_by(sex, income) %>%
+    summarise(freq = n()) %>%
+    mutate(perc = freq / sum(freq) * 100) %>%
+    ggplot() +
+    geom_col(aes(x = sex, y = freq, fill = income), position = "dodge2") +
+    labs(x = "Sex", y = "Count") +
+    geom_text(aes(x = sex, y = freq, label = paste0(round(perc), "%")),
+              size = 4, position = position_dodge2(width = 0.8)) +
+    theme_bw()
+```
+
+We see that only 11% of females earn more than 50K a year whereas the percentage is around 3 times higher in males (31%).
+
+## Section 4: Data Cleaning
+
+```{r}
+# combining train and test for cleaning and export
+
+test <- test %>%
+    magrittr::set_colnames(c("age", "workclass", "fnlwgt", "education", "education_num",
+                             "marital_status", "occupation", "relationship", "race",
+                             "sex", "capital_gain", "capital_loss", "hours_per_week",
+                             "native_country", "income"))
+
+test <- test %>%
+    mutate(income = str_trim(income, side = c("left")),
+           income = ifelse(income == "<=50K.", "<=50K", ">50K"),
+           occupation = ifelse(occupation == " ?", "unknown", as.character(occupation)),
+           workclass = ifelse(workclass == " ?", "unknown", as.character(workclass)),
+           native_country = ifelse(native_country == " ?", "unknown", as.character(native_country)),
+           workclass = str_trim(workclass, side = c("left")),
+           education = str_trim(education, side = c("left")),
+           marital_status = str_trim(marital_status, side = c("left")),
+           occupation = str_trim(occupation, side = c("left")),
+           relationship = str_trim(relationship, side = c("left")),
+           sex = str_trim(sex, side = c("left")),
+           race = str_trim(race, side = c("left")),
+           native_country = str_trim(native_country, side = c("left")))
+
+adult <- rbind(adult, test)
+```
+
+First, we will combine similar categories in different categorical variables into a smaller number of categories.
+
+```{r}
+# combining categories in workclass
+adult <- adult %>%
+    mutate(workclass = replace(workclass, workclass %in% c('State-gov', 'Federal-gov',
+                                                 'Local-gov'), 0),
+           workclass = replace(workclass, workclass %in% c('Self-emp-not-inc', 'Self-emp-inc',
+                                                 'Without-pay', 'Never-worked'), 1),
+           workclass = replace(workclass, workclass %in% c('Private'), 2),
+           workclass = replace(workclass, workclass %in% c('unknown'), -1))
+
+# combining categories in marital_status
+adult <- adult %>%
+    mutate(marital_status = replace(marital_status, marital_status %in% c('Married-civ-spouse',
+                                                           'Married-spouse-absent',
+                                                           'Married-AF-spouse'), 0),
+           marital_status = replace(marital_status, marital_status %in% c('Never-married','Divorced',
+                                                           'Separated','Widowed'), 1))
+# combining categories in education
+adult <- adult %>%
+    select(-education_num) %>%
+    mutate(education = replace(education, education %in% c("HS-grad", "11th", "9th", "7th-8th",
+                                                           "5th-6th", "10th", "Preschool", "12th",
+                                                           "1st-4th"), 0),
+           education = replace(education, education %in% c("Bachelors", "Some-college", "Assoc-acdm",
+                                                           "Assoc-voc"), 1),
+           education = replace(education, education %in% c("Masters", "Prof-school", "Doctorate",
+                                                           "Assoc-voc"), 2))
+
+# combining categories in occupation
+adult <- adult %>%
+    mutate(occupation = replace(occupation, occupation %in% c("Priv-house-serv", "Handlers-cleaners",
+                                                              "Other-service", "Armed-Forces",
+                                                              "Machine-op-inspct", "Farming-fishing",
+                                                              "Adm-clerical"), 0),
+           occupation = replace(occupation, occupation %in% c("Tech-support", "Craft-repair",
+                                                              "Protective-serv", "Transport-moving",
+                                                              "Sales"), 1),
+           occupation = replace(occupation, occupation %in% c("Exec-managerial", "Prof-specialty"), 2),
+           occupation = replace(occupation, occupation %in% c("unknown"), -1))
+
+# combining categories in race
+adult <- adult %>%
+    mutate(race = replace(race, race %in% c("White"), 0),
+           race = replace(race, race %in% c("Black"), 1),
+           race = replace(race, race %in% c("Asian-Pac-Islander",
+                                            "Amer-Indian-Eskimo", "Other"), 2))
+
+# handling sex and native country and target
+adult <- adult %>%
+    mutate(sex = ifelse(sex == "Male", 1, 0),
+           native_country = ifelse(native_country == "United-States", 1, 0),
+           income = ifelse(income == "<=50K", 0, 1))
+
+# removing unnecessary variables eg: relationship, as information
+# already encoded in sex and marital status
+adult <- adult %>%
+    select(-c(relationship, fnlwgt))
+
+train <- adult[1:(nrow(adult) - nrow(test)), ]
+test <- adult[(nrow(adult) - nrow(test) + 1):nrow(adult), ]
+```
+
+Now that we have cleaned the dataset, let's export it so that it can be used in model building directly.
+
+```{r}
+# exporting the datasets
+write_csv(train, "data/train.csv", col_names = TRUE)
+write_csv(test, "data/test.csv", col_names = TRUE)
+```

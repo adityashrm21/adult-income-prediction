@@ -1,0 +1,6 @@
+scikit-learn
+pandas
+flask
+gunicorn
+peewee
+psycopg2
