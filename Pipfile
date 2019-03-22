@@ -6,14 +6,14 @@ verify_ssl = true
 [dev-packages]
 
 [packages]
-scipy = "*"
 scikit-learn = "*"
 pandas = "*"
+numpy = "==1.15.*"
+pytest = "==3.5.1"
 gunicorn = "*"
 peewee = "*"
 psycopg2 = "*"
 Flask = "*"
-category_encoders = "==1.2.6"
 
 [requires]
 python_version = "3.7"

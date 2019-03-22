@@ -47,6 +47,9 @@ This information is directly copied from the [UCI datasets repository for adult 
 
 ```bash
 R -e rmarkdown::render"('eda_adult.Rmd', clean=TRUE, output_format='pdf_document')"
+
+# use this command to generate a markdown
+R -e rmarkdown::render"('eda_adult.Rmd', clean=TRUE, output_format='github_document')"
 ```
 The script `eda_adult.pdf` will contain the exploratory analysis report on the adult income dataset.
 

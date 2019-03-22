@@ -3,6 +3,8 @@ Adult Dataset
 
 ``` r
 # importing the required libraries
+# uncomment the below line if tidyverse not already installed
+# install.packages("tidyverse")
 suppressPackageStartupMessages(library(tidyverse))
 ```
 
